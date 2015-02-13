@@ -2630,7 +2630,7 @@ lint_arch() {
 		error "$(gettext "%s is not available for the '%s' architecture.")" "$pkgbase" "$CARCH"
 		plain "$(gettext "Note that many packages may need a line added to their %s")" "$BUILDSCRIPT"
 		plain "$(gettext "such as %s.")" "arch=('$CARCH')"
-		return 1
+		exit 1
 	fi
 
 	for name in "${pkgname[@]}"; do
