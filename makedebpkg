@@ -157,16 +157,16 @@ clean_up() {
 			local fullver=$(get_full_version)
 			# Can't do this unless the BUILDSCRIPT has been sourced.
 			if (( BUILDFUNC )); then
-				rm -f "${pkgbase}-${fullver}-${CARCH}-build.log"*
+				rm -f "$(get_pkg_basename)-build.log"*
 			fi
 			if (( CHECKFUNC )); then
-				rm -f "${pkgbase}-${fullver}-${CARCH}-check.log"*
+				rm -f "$(get_pkg_basename)-check.log"*
 			fi
 			if (( PKGFUNC )); then
-				rm -f "${pkgbase}-${fullver}-${CARCH}-package.log"*
+				rm -f "$(get_pkg_basename)-package.log"*
 			elif (( SPLITPKG )); then
 				for pkg in ${pkgname[@]}; do
-					rm -f "${pkgbase}-${fullver}-${CARCH}-package_${pkg}.log"*
+					rm -f "$(get_pkg_basename)-package_${pkg}.log"*
 				done
 			fi
 
@@ -190,6 +190,10 @@ enter_fakeroot() {
 	fakeroot -- $0 -F "${ARGLIST[@]}" || exit $?
 }
 
+
+get_pkg_basename() {
+    printf "${pkgbase}_${fullver}_${pkgarch:-$CARCH}"
+}
 
 # a source entry can have two forms :
 # 1) "filename::http://path/to/file"
@@ -1694,7 +1698,7 @@ run_function() {
 	local ret=0
 	if (( LOGGING )); then
 		local fullver=$(get_full_version)
-		local BUILDLOG="$LOGDEST/${pkgbase}-${fullver}-${CARCH}-$pkgfunc.log"
+		local BUILDLOG="$LOGDEST/$(get_pkg_basename)-$pkgfunc.log"
 		if [[ -f $BUILDLOG ]]; then
 			local i=1
 			while true; do
@@ -2162,7 +2166,7 @@ write_pkginfo() {
 	printf "Package: %s\n" "$pkgname"
 	printf "X-makedebpkg-version: %s\n" "$makedebpkg_version"
 	printf "X-fakeroot-version: %s\n" "$(fakeroot -v)"
-	printf "X-date-built: %s\n" "$(LC_ALL=C date -u)"
+	printf "X-date-built: %s\n" "$(LC_ALL=C date -u "+%s")"
 
 	local fullver=$(get_full_version)
 	printf "Version: %s\n" "$fullver"
@@ -2190,17 +2194,20 @@ write_pkginfo() {
 	[[ $makedepends ]]  && printf "Build-Depends: %s\n" "${makedepends[@]}"
 
 	local it
-	for it in "${packaging_options[@]}"; do
-		check_option "$it" "y"
-		case $? in
-			0)
-				printf "X-makedebpkgopt: %s\n" "$it"
-				;;
-			1)
-				printf "X-makedebpkgopt: %s\n" "!$it"
-				;;
-		esac
-	done
+    # Oh, I should rewrite this to look better
+	printf "X-makedebpkgopt: %s\n" "$(
+        for it in "${packaging_options[@]}"; do
+		    check_option "$it" "y"
+		    case $? in
+			    0)
+				    printf "%s " "$it"
+				    ;;
+			    1)
+				    printf "%s " "!$it"
+				    ;;
+		    esac
+	    done
+    )"
 }
 
 create_package() {
@@ -2217,7 +2224,7 @@ create_package() {
 
     local doc
     doc="$DOC_DIR/$pkgname"
-    mkdir -p "${doc}"
+    mkdir -p "$doc"
 
 	pkgarch=$(get_pkg_arch)
     mkdir DEBIAN
@@ -2226,29 +2233,29 @@ create_package() {
 
     # Install special debian hook scripts
     for i in "preinst" "postinst" "prerm" "postrm"; do
-        if [ -f "${startdir}/install/${i}" ]; then
-            if ! cp "${startdir}/install/${i}" DEBIAN/; then
-                error "$(gettext "Failed to add %s file to package")" "${i}"
+        if [ -f "$startdir/install/$i" ]; then
+            if ! cp "$startdir/install/$i" DEBIAN/; then
+                error "$(gettext "Failed to add %s file to package")" "$i"
                 exit 1
             fi
-            chmod 755 "DEBIAN/${i}"
+            chmod 755 "DEBIAN/$i"
         fi
     done
 
     local changelog="${pkgname}.changelog"
-    if [ -f "${startdir}/${changelog}" ]; then
-		msg2 "$(gettext "Adding %s file...")" "${changelog}"
-		if ! cp "${startdir}/${changelog}" "${doc}/changelog"; then
-			error "$(gettext "Failed to add %s file to package.")" "${changelog}"
+    if [ -f "$startdir/$changelog" ]; then
+		msg2 "$(gettext "Adding %s file...")" "$changelog"
+		if ! cp "$startdir/$changelog" "$doc/changelog"; then
+			error "$(gettext "Failed to add %s file to package.")" "$changelog"
 			exit 1
 		fi
-		chmod 644 "${doc}/changelog"
-		comp_files+=("${doc}/changelog")
+		chmod 644 "$doc/changelog"
+		comp_files+=("$doc/changelog")
 	fi
 
 	# dpkg -b it up
 	local fullver=$(get_full_version)
-	local pkg_file="$PKGDEST/${pkgname}-${fullver}-${pkgarch}${PKGEXT}"
+	local pkg_file="$PKGDEST/$(get_pkg_basename)$PKGEXT"
 	local ret=0
 
 	[[ -f $pkg_file ]] && rm -f "$pkg_file"
@@ -2267,7 +2274,7 @@ create_package() {
 	msg2 "$(gettext "Compressing package...")"
 	# TODO: Maybe this can be set globally for robustness
 	shopt -s -o pipefail
-    run_dpkg -b . "${pkg_file}" || ret=$?
+    run_dpkg -b . "$pkg_file" || ret=$?
 
 	shopt -u nullglob
 	shopt -u -o pipefail
@@ -3052,7 +3059,7 @@ check_build_status() {
 	if (( ! SPLITPKG )); then
 		fullver=$(get_full_version)
 		pkgarch=$(get_pkg_arch)
-		if [[ -f $PKGDEST/${pkgname}-${fullver}-${pkgarch}${PKGEXT} ]] \
+		if [[ -f $PKGDEST/$(get_pkg_basename)${PKGEXT} ]] \
 				 && ! (( FORCE || SOURCEONLY || NOBUILD || NOARCHIVE)); then
 			if (( INSTALL )); then
 				warning "$(gettext "A package has already been built, installing existing package...")"
@@ -3336,8 +3343,6 @@ usage() {
 	echo
 	printf -- "$(gettext "These options can be passed to %s:")\n" "pacman"
 	echo
-	printf -- "$(gettext "  --asdeps         Install packages as non-explicitly installed")\n"
-	printf -- "$(gettext "  --needed         Do not reinstall the targets that are already up to date")\n"
 	printf -- "$(gettext "  --noconfirm      Do not ask for confirmation when resolving dependencies")\n"
 	printf -- "$(gettext "  --noprogressbar  Do not show a progress bar when downloading files")\n"
 	echo
@@ -3377,7 +3382,7 @@ OPT_LONG=('allsource' 'check' 'clean' 'cleanbuild' 'config:' 'force' 'geninteg'
           'verifysource' 'version')
 
 # Pacman Options
-OPT_LONG+=('asdeps' 'noconfirm' 'needed' 'noprogressbar')
+OPT_LONG+=('needed' 'noprogressbar')
 
 if ! parseopts "$OPT_SHORT" "${OPT_LONG[@]}" -- "$@"; then
 	exit 1 # E_INVALID_OPTION;
@@ -3484,7 +3489,7 @@ APTGET_PATH=$(type -P $APTGET)
 APTCACHE_PATH=$(type -P $APTCACHE)
 DPKG_PATH=$(type -P $DPKG)
 
-DOC_DIR=${DOC_DIRS[0]:-usr/share/doc}}
+DOC_DIR=${DOC_DIRS[0]:-usr/share/doc}
 
 # check if messages are to be printed using color
 unset ALL_OFF BOLD BLUE GREEN RED YELLOW
