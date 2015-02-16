@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 #   makedebpkg - makepkg[1] fork to build debian packages
 #
@@ -152,7 +152,7 @@ clean_up() {
 
 		# If it's a clean exit and -c/--clean has been passed...
 		msg "$(gettext "Cleaning up...")"
-		rm -rf "$pkgdirbase" "$srcdir"
+		rm -rf "$pkgdirbase" "$srcdir" "$debiandirbase"
 		if [[ -n $pkgbase ]]; then
 			local fullver=$(get_full_version)
 			# Can't do this unless the BUILDSCRIPT has been sourced.
@@ -2159,24 +2159,44 @@ write_srcinfo() {
 	done
 }
 
-write_pkginfo() {
+write_debian_control() {
+    local -a sections=("${@}")
+    if [ -z "$sections" ]; then
+        sections[0]=package
+    fi
+
+    for section in "${sections[@]}"; do
+        case $section in
+            "package"|"source") write_debian_control_${section}_section; printf "\n" ;;
+            *) error "No handler for debian control section '$section'"; exit 1 ;;
+        esac
+    done
+}
+
+write_debian_control_source_section() {
 	if [[ -n $PACKAGER ]]; then
 		local packager="$PACKAGER"
 	else
 		local packager=$D_PACKAGER
 	fi
 
+	msg2 "$(gettext "Generating source section of %s ...")" "$debiandir/control"
+
+    printf "Source: %s\n" "$pkgname"
+	printf "Maintainer: %s\n" "$packager"
+}
+
+write_debian_control_package_section() {
 	local size="$(/usr/bin/du -sk --apparent-size)"
 	size="$(( ${size%%[^0-9]*} * 1024 ))"
 
 	merge_arch_attrs
 
-	msg2 "$(gettext "Generating %s file content...")" "DEBIAN/control"
+	msg2 "$(gettext "Generating package section of %s ...")" "$debiandir/control"
 
 	local fullver=$(get_full_version)
 
 	printf "Package: %s\n" "$pkgname"
-	printf "Maintainer: %s\n" "$packager"
 	printf "Version: %s\n" "$fullver"
 
 	# TODO: all fields should have this treatment
@@ -2187,7 +2207,7 @@ write_pkginfo() {
 	printf "Description: %s\n" "$spd"
 	printf "Homepage: %s\n" "$url"
 	printf "Installed-Size: %s\n" "$size"
-	printf "Architecture: %s\n" "$pkgarch"
+	printf "Architecture: %s\n" "$(get_pkg_arch)"
 
 	mapfile -t provides < <(find_libprovides)
 	mapfile -t depends < <(find_libdepends)
@@ -2237,6 +2257,13 @@ write_debian_files() {
     printf "%s %s %s" "$pkg_file" "$section" "$priority"
 }
 
+prepare_debian() {
+    msg "$(gettext "Preparing debian folder structure in ")" $debiandir
+	cd_safe "$debiandir"
+    # Dummy changelog for dpkg-genchages, signature etc
+    write_debian_changelog > changelog
+}
+
 create_package() {
 	(( NOARCHIVE )) && return
 
@@ -2249,31 +2276,30 @@ create_package() {
 	cd_safe "$pkgdir"
 	msg "$(gettext "Creating package \"%s\"...")" "$pkgname"
 
+    msg2 "$(gettext "Linking $debiandir directory to $pkgdir/DEBIAN")"
+    ln -s "$debiandir" "DEBIAN"
+
     local doc
     doc="$DOC_DIR/$pkgname"
     mkdir -p "$doc"
 
-	pkgarch=$(get_pkg_arch)
-    local pkg_name="$(get_pkg_basename)_$pkgarch"
+    local pkg_name="$(get_pkg_basename)_$(get_pkg_arch)"
 	local pkg_file_base="$pkg_name$PKGEXT"
     local pkg_file="$PKGDEST/$pkg_file_base"
 
-    mkdir DEBIAN
-	write_pkginfo > DEBIAN/control
-    # Dummy changelog for dpkg-genchages, signature etc
-    write_debian_changelog > DEBIAN/changelog
+	write_debian_control "package" > $debiandir/control
     # For dpkg-genchanges
-    write_debian_files $pkg_file_base > DEBIAN/files
+    write_debian_files $pkg_file_base > $debiandir/files
 	local comp_files=()
 
     # Install special debian hook scripts
     for i in "preinst" "postinst" "prerm" "postrm"; do
         if [ -f "$startdir/install/$i" ]; then
-            if ! cp "$startdir/install/$i" DEBIAN/; then
+            if ! cp "$startdir/install/$i" $debiandir/; then
                 error "$(gettext "Failed to add %s file to package")" "$i"
                 exit 1
             fi
-            chmod 755 "DEBIAN/$i"
+            chmod 755 "$debiandir/$i"
         fi
     done
 
@@ -2382,15 +2408,19 @@ create_srcpackage() {
 	local ret=0
 	msg "$(gettext "Creating source package...")"
 	local srclinks="$(mktemp -d "$startdir"/srclinks.XXXXXXXXX)"
-	mkdir "${srclinks}"/${pkgbase}
+	mkdir "${srclinks}/${pkgbase}"
 
 	msg2 "$(gettext "Adding %s...")" "$BUILDSCRIPT"
-	ln -s "${BUILDFILE}" "${srclinks}/${pkgbase}/${BUILDSCRIPT}"
+	cp "${BUILDFILE}" "${srclinks}/${pkgbase}/${BUILDSCRIPT}"
 
 	msg2 "$(gettext "Generating %s file...")" .SRCINFO
 	write_srcinfo > "$srclinks/$pkgbase"/.SRCINFO
 
 	local file all_sources
+
+    msg2 "$(gettext "Copying contents of ${srcdir}/${pkgname}-*/* to ${srclinks}/${pkgbase}/.")"
+    cp -rL ${srcdir}/${pkgname}-*/* "${srclinks}/${pkgbase}/"
+    ls -la "${srclinks}/${pkgbase}/"
 
 	get_all_sources 'all_sources'
 	for file in "${all_sources[@]}"; do
@@ -2398,7 +2428,7 @@ create_srcpackage() {
 			local absfile
 			absfile=$(get_filepath "$file") || missing_source_file "$file"
 			msg2 "$(gettext "Adding %s...")" "${absfile##*/}"
-			ln -s "$absfile" "$srclinks/$pkgbase"
+			cp -r "$absfile" "$srclinks/$pkgbase"
 		fi
 	done
 
@@ -2416,49 +2446,48 @@ create_srcpackage() {
 		for file in "${files[@]}"; do
 			if [[ $file && ! -f "${srclinks}/${pkgbase}/$file" ]]; then
 				msg2 "$(gettext "Adding %s file (%s)...")" "$i" "${file}"
-				ln -s "${startdir}/$file" "${srclinks}/${pkgbase}/"
+				cp "${startdir}/$file" "${srclinks}/${pkgbase}/"
 			fi
 		done
 	done
 
-	local TAR_OPT
-	case "$SRCEXT" in
-		*tar.gz)  TAR_OPT="-z" ;;
-		*tar.bz2) TAR_OPT="-j" ;;
-		*tar.xz)  TAR_OPT="-J" ;;
-		*tar.lrz) TAR_OPT="--lrzip" ;;
-		*tar.lzo) TAR_OPT="--lzop" ;;
-		*tar.Z)   TAR_OPT="-Z" ;;
-		*tar)     TAR_OPT=""  ;;
-		*) warning "$(gettext "'%s' is not a valid archive extension.")" \
-		    "$SRCEXT" ;;
-	esac
-
-	local pkg_file="$SRCPKGDEST/$(get_pkg_basename)${SRCEXT}"
+    # Files that will create dpkg-source
+    # That thing is anoying because of dpkg ugly nature
+    # it's very hard to configure properly
+	local pkg_files=("$(get_pkg_basename).tar.gz" "$(get_pkg_basename).dsc")
 
 	# tar it up
 	msg2 "$(gettext "Compressing source package...")"
-	cd_safe "${srclinks}"
-	if ! LANG=C bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgbase}; then
+	cd_safe "${srclinks}/${pkgbase}"
+    # Create symlink to directory with debian control files for dpkg-source
+    ln -s "$debiandir" "debian"
+    write_debian_control "source" "package" > debian/control
+    #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgbase}; then
+	if ! LANG=C dpkg-source -b ./; then
 		error "$(gettext "Failed to create source package file.")"
 		exit 1 # TODO: error code
+    else
+        # dpkg-source -b will create files one level upper
+	    cd_safe "${srclinks}"
+        for f in "${pkg_files[@]}"; do
+            # Moving it for dpkg-changes etc
+            mv "${f}" "${pkgdirbase}/" || ret=$?
+            if (( ret )); then
+                error "$(gettext "Failed to move ${f} to ${pkgdirbase}/.")"
+                exit 1
+            fi
+            if [ -e "${SRCDEST}/${f}" ]; then
+                rm -f "${SRCDEST}/${f}"
+            fi
+            ln -s "${pkgdirbase}/${f}" "${SRCDEST}/${f}" || ret=$?
+            if (( ret )); then
+                error "$(gettext "Failed to create symlink to source package file.")"
+                exit 1
+            fi
+        done
 	fi
 
-	create_signature "$pkg_file"
-
-	if [[ ! "$SRCPKGDEST" -ef "${startdir}" ]]; then
-		rm -f "${pkg_file/$SRCPKGDEST/$startdir}"
-		ln -s "${pkg_file}" "${pkg_file/$SRCPKGDEST/$startdir}"
-		ret=$?
-		if [[ -f $pkg_file.dsc ]]; then
-			rm -f "${pkg_file/$PKGDEST/$startdir}.dsc"
-			ln -s "$pkg_file.dsc" "${pkg_file/$PKGDEST/$startdir}.dsc"
-		fi
-	fi
-
-	if (( ret )); then
-		warning "$(gettext "Failed to create symlink to source package file.")"
-	fi
+	#create_signature "$pkg_file"
 
 	cd_safe "${startdir}"
 	rm -rf "${srclinks}"
@@ -3121,6 +3150,7 @@ check_software() {
 }
 
 check_build_status() {
+    local pkgarch fullver
 	if (( ! SPLITPKG )); then
 		fullver=$(get_full_version)
 		pkgarch=$(get_pkg_arch)
@@ -3196,6 +3226,9 @@ run_split_packaging() {
 		backup_package_variables
 		run_package $pkgname
 		tidy_install
+        debiandir="$debiandirbase/$pkgname"
+        mkdir "$debiandir"
+        prepare_debian
         create_srcpackage
 		create_package
 		create_debug_package
@@ -3692,14 +3725,16 @@ basever=$(get_full_version)
 if [[ $BUILDDIR = "$startdir" ]]; then
 	srcdir="$BUILDDIR/src"
 	pkgdirbase="$BUILDDIR/pkg"
+    debiandirbase="$BUILDDIR/debian"
 else
 	srcdir="$BUILDDIR/$pkgbase/src"
 	pkgdirbase="$BUILDDIR/$pkgbase/pkg"
-
+    debiandirbase="$BUILDDIR/$pkgbase/debian"
 fi
 
 # set pkgdir to something "sensible" for (not recommended) use during build()
 pkgdir="$pkgdirbase/$pkgbase"
+debiandir="$debiandirbase/$pkgbase"
 
 if (( GENINTEG )); then
 	mkdir -p "$srcdir"
@@ -3771,12 +3806,13 @@ fi
 # Run the bare minimum in fakeroot
 if (( INFAKEROOT )); then
 	if (( SOURCEONLY )); then
+        prepare_debian
 		create_srcpackage
 		msg "$(gettext "Leaving %s environment.")" "fakeroot"
 		exit 0 # $E_OK
 	fi
 
-	chmod 755 "$pkgdirbase"
+	chmod 755 "$pkgdirbase" "$debiandirbase"
 	if (( ! SPLITPKG )); then
 		pkgdir="$pkgdirbase/$pkgname"
 		mkdir "$pkgdir"
@@ -3784,6 +3820,9 @@ if (( INFAKEROOT )); then
 			run_package
 		fi
 		tidy_install
+		debiandir="$debiandirbase/$pkgname"
+		mkdir "$debiandir"
+        prepare_debian
         create_srcpackage
 		create_package
 		create_debug_package
@@ -3892,12 +3931,16 @@ if (( NOBUILD )); then
 	exit 0 #E_OK
 else
 	# clean existing pkg directory
-	if [[ -d $pkgdirbase ]]; then
-		msg "$(gettext "Removing existing %s directory...")" "\$pkgdir/"
-		rm -rf "$pkgdirbase"
-	fi
-	mkdir -p "$pkgdirbase"
-	chmod a-srwx "$pkgdirbase"
+    for d in "$pkgdirbase" "$debiandirbase"; do
+	    if [[ -d $d ]]; then
+		    msg "$(gettext "Removing existing %s directory...")" "\$d/"
+		    rm -rf "$d"
+	    fi
+
+	    mkdir -p "$d"
+	    chmod a-srwx "$d"
+    done
+
 	cd_safe "$startdir"
 
 	if (( ! REPKG )); then
