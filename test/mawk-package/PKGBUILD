@@ -4,6 +4,7 @@ pkgrel=1
 pkgdesc="An interpreter for the AWK Programming Language"
 arch=('i686' 'amd64')
 depends=()
+branch=unstable
 url="http://invisible-island.net/mawk/"
 source=("$pkgname-$pkgver.tar.gz::http://invisible-island.net/datafiles/release/$pkgname.tar.gz")
 md5sums=('08680b169544f225b60c47fc19da82d4')

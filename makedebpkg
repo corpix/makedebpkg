@@ -44,7 +44,7 @@ declare -r startdir="$PWD"
 packaging_options=('strip' 'docs' 'libtool' 'staticlibs' 'emptydirs' 'zipman'
                    'purge' 'upx' 'debug')
 other_options=('ccache' 'distcc' 'buildflags' 'makeflags')
-splitpkg_overrides=('pkgdesc' 'arch' 'url' 'license' 'groups' 'depends'
+splitpkg_overrides=('pkgdesc' 'arch' 'url' 'license' 'groups' 'depends' 'branch'
                     'optdepends' 'provides' 'conflicts' 'replaces' 'backup'
                     'options' 'install' 'changelog')
 readonly -a packaging_options other_options splitpkg_overrides
@@ -2126,7 +2126,7 @@ srcinfo_write_section_details() {
 
 srcinfo_write_global() {
 	local singlevalued=(pkgdesc pkgver pkgrel epoch url install changelog)
-	local multivalued=(arch groups license checkdepends makedepends
+	local multivalued=(arch groups branch license checkdepends makedepends
 	                   depends optdepends provides conflicts replaces
 	                   noextract options backup
 	                   source {md5,sha{1,224,256,384,512}}sums)
@@ -2138,7 +2138,7 @@ srcinfo_write_global() {
 
 srcinfo_write_package() {
 	local singlevalued=(pkgdesc url install changelog)
-	local multivalued=(arch groups license checkdepends depends optdepends
+	local multivalued=(arch groups branch license checkdepends depends optdepends
 	                   provides conflicts replaces options backup)
 
 	srcinfo_open_section 'pkgname' "$1"
@@ -2163,7 +2163,7 @@ write_pkginfo() {
 	if [[ -n $PACKAGER ]]; then
 		local packager="$PACKAGER"
 	else
-		local packager="Unknown Packager"
+		local packager=$D_PACKAGER
 	fi
 
 	local size="$(/usr/bin/du -sk --apparent-size)"
@@ -2221,6 +2221,17 @@ write_pkginfo() {
 	printf "X-makedebpkgopt: %s\n" $(join " " "${x_options[@]}")
 }
 
+write_debian_changelog() {
+    if [[ -n $PACKAGER ]]; then
+		local packager="$PACKAGER"
+	else
+		local packager=$D_PACKAGER
+	fi
+    printf "%s (%s) %s; urgency=low\n\n" "$pkgname" "$(get_full_version)" "$branch"
+    printf "\t* Automatic record by makedebpkg tool https://github.com/corpix/makedebpkg\n\n"
+    printf " -- %s %s\n" "$packager" "$(date --rfc-2822)"
+}
+
 create_package() {
 	(( NOARCHIVE )) && return
 
@@ -2240,6 +2251,8 @@ create_package() {
 	pkgarch=$(get_pkg_arch)
     mkdir DEBIAN
 	write_pkginfo > DEBIAN/control
+    # Dummy changelog for dpkg-genchages, signature etc
+    write_debian_changelog > DEBIAN/changelog
 	local comp_files=()
 
     # Install special debian hook scripts
@@ -2294,7 +2307,6 @@ create_package() {
 		exit 1 # TODO: error code
 	fi
 
-    create_changes ""
 	create_signature "$pkg_file"
 
 	if (( ! ret )) && [[ ! "$PKGDEST" -ef "${startdir}" ]]; then
@@ -2776,6 +2788,15 @@ lint_changelog() {
 	check_files_exist 'changelog' "${changelog_list[@]}"
 }
 
+lint_branch() {
+    if [ -z "$branch" ]; then
+        error "You should specify a branch to build package for in your $BUILDSCRIPT. It could be 'unstable' or something else..."
+        return 1
+    fi
+
+    return 0
+}
+
 lint_options() {
 	local ret=0 list name kopt options_list
 
@@ -2859,6 +2880,7 @@ check_sanity() {
 		lint_provides
 		lint_backup
 		lint_optdepends
+        lint_branch
 		lint_changelog
 		lint_install
 		lint_options
@@ -3501,6 +3523,8 @@ DPKG_PATH=$(type -P $DPKG)
 
 DOC_DIR=${DOC_DIRS[0]:-usr/share/doc}
 
+D_PACKAGER="Unknown packager <none@dev.null>"
+
 # check if messages are to be printed using color
 unset ALL_OFF BOLD BLUE GREEN RED YELLOW
 if [[ -t 2 && $USE_COLOR != "n" ]] && check_buildenv "color" "y"; then
@@ -3602,7 +3626,7 @@ else
 	fi
 fi
 
-unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license groups provides
+unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license groups provides branch
 unset md5sums replaces depends conflicts backup source install changelog build
 unset makedepends optdepends options noextract validpgpkeys
 
