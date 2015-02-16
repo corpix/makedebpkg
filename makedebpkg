@@ -42,11 +42,11 @@ declare -r BUILDSCRIPT='PKGBUILD'
 declare -r startdir="$PWD"
 
 packaging_options=('strip' 'docs' 'libtool' 'staticlibs' 'emptydirs' 'zipman'
-                   'purge' 'upx' 'debug')
+    'purge' 'upx' 'debug')
 other_options=('ccache' 'distcc' 'buildflags' 'makeflags')
 splitpkg_overrides=('pkgdesc' 'arch' 'url' 'license' 'groups' 'depends' 'branch'
-                    'optdepends' 'provides' 'conflicts' 'replaces' 'backup'
-                    'options' 'install' 'changelog')
+    'optdepends' 'provides' 'conflicts' 'replaces' 'backup'
+    'options' 'install' 'changelog')
 readonly -a packaging_options other_options splitpkg_overrides
 
 known_hash_algos=('md5' 'sha1' 'sha224' 'sha256' 'sha384' 'sha512')
@@ -877,7 +877,7 @@ update_pkgver() {
 		if [[ -f $BUILDFILE && -w $BUILDFILE ]]; then
 			if ! sed --follow-symlinks -i "s:^pkgver=[^ ]*:pkgver=$newpkgver:" "$BUILDFILE"; then
 				error "$(gettext "Failed to update %s from %s to %s")" \
-						"pkgver" "$pkgver" "$newpkgver"
+					"pkgver" "$pkgver" "$newpkgver"
 				exit 1
 			fi
 			sed --follow-symlinks -i "s:^pkgrel=[^ ]*:pkgrel=1:" "$BUILDFILE"
@@ -886,7 +886,7 @@ update_pkgver() {
 			msg "$(gettext "Updated version: %s")" "$pkgbase $fullver"
 		else
 			warning "$(gettext "%s is not writeable -- pkgver will not be updated")" \
-					"$BUILDFILE"
+				"$BUILDFILE"
 		fi
 	fi
 }
@@ -1168,14 +1168,14 @@ remove_deps() {
 	# check for packages removed during dependency install (e.g. due to conflicts)
 	# removing all installed packages is risky in this case
 	if [[ -n $(grep -xvFf <(printf '%s\n' "${current_pkglist[@]}") \
-			<(printf '%s\n' "${original_pkglist[@]}")) ]]; then
+		<(printf '%s\n' "${original_pkglist[@]}")) ]]; then
 		warning "$(gettext "Failed to remove installed dependencies.")"
 		return 0
 	fi
 
 	local deplist
 	deplist=($(grep -xvFf <(printf "%s\n" "${original_pkglist[@]}") \
-			<(printf "%s\n" "${current_pkglist[@]}")))
+		<(printf "%s\n" "${current_pkglist[@]}")))
 	if [[ -z $deplist ]]; then
 		return 0
 	fi
@@ -1944,7 +1944,7 @@ tidy_install() {
 		find . -type f -perm -u+w 2>/dev/null | while read -r binary ; do
 			if [[ $(file -bi "$binary") = *'application/x-executable'* ]]; then
 				upx $UPXFLAGS "$binary" &>/dev/null ||
-						warning "$(gettext "Could not compress binary : %s")" "${binary/$pkgdir\//}"
+				warning "$(gettext "Could not compress binary : %s")" "${binary/$pkgdir\//}"
 			fi
 		done
 	fi
@@ -2102,8 +2102,8 @@ pkgbuild_extract_to_srcinfo() {
 srcinfo_write_section_details() {
 	local attr package_arch a
 	local multivalued_arch_attrs=(source provides conflicts depends replaces
-	                              optdepends makedepends checkdepends
-	                              {md5,sha{1,224,256,384,512}}sums)
+	    optdepends makedepends checkdepends
+	    {md5,sha{1,224,256,384,512}}sums)
 
 	for attr in "${singlevalued[@]}"; do
 		pkgbuild_extract_to_srcinfo "$1" "$attr" 0
@@ -2127,9 +2127,9 @@ srcinfo_write_section_details() {
 srcinfo_write_global() {
 	local singlevalued=(pkgdesc pkgver pkgrel epoch url install changelog)
 	local multivalued=(arch groups branch license checkdepends makedepends
-	                   depends optdepends provides conflicts replaces
-	                   noextract options backup
-	                   source {md5,sha{1,224,256,384,512}}sums)
+	    depends optdepends provides conflicts replaces
+	    noextract options backup
+	    source {md5,sha{1,224,256,384,512}}sums)
 
 	srcinfo_open_section 'pkgbase' "${pkgbase:-$pkgname}"
 	srcinfo_write_section_details ''
@@ -2139,7 +2139,7 @@ srcinfo_write_global() {
 srcinfo_write_package() {
 	local singlevalued=(pkgdesc url install changelog)
 	local multivalued=(arch groups branch license checkdepends depends optdepends
-	                   provides conflicts replaces options backup)
+	    provides conflicts replaces options backup)
 
 	srcinfo_open_section 'pkgname' "$1"
 	srcinfo_write_section_details "$1"
@@ -2223,10 +2223,10 @@ write_pkginfo() {
 
 write_debian_changelog() {
     if [[ -n $PACKAGER ]]; then
-		local packager="$PACKAGER"
-	else
-		local packager=$D_PACKAGER
-	fi
+        local packager="$PACKAGER"
+    else
+        local packager=$D_PACKAGER
+    fi
     printf "%s (%s) %s; urgency=low\n\n" "$pkgname" "$(get_full_version)" "$branch"
     printf "\t* Automatic record by makedebpkg tool https://github.com/corpix/makedebpkg\n\n"
     printf " -- %s %s\n" "$packager" "$(date --rfc-2822)"
@@ -2422,7 +2422,7 @@ create_srcpackage() {
 		*tar.Z)   TAR_OPT="-Z" ;;
 		*tar)     TAR_OPT=""  ;;
 		*) warning "$(gettext "'%s' is not a valid archive extension.")" \
-		"$SRCEXT" ;;
+		    "$SRCEXT" ;;
 	esac
 
 	local pkg_file="$SRCPKGDEST/$(get_pkg_basename)${SRCEXT}"
@@ -2596,7 +2596,7 @@ lint_pkgname() {
 		fi
 		if [[ $i = *[^[:alnum:]+_.@-]* ]]; then
 			error "$(gettext "%s contains invalid characters: '%s'")" \
-					'pkgname' "${i//[[:alnum:]+_.@-]}"
+				'pkgname' "${i//[[:alnum:]+_.@-]}"
 			ret=1
 		fi
 	done
@@ -2642,7 +2642,7 @@ lint_arch() {
 	for a in "${arch[@]}"; do
 		if [[ $a = *[![:alnum:]_]* ]]; then
 			error "$(gettext "%s contains invalid characters: '%s'")" \
-					'arch' "${a//[[:alnum:]_]}"
+				'arch' "${a//[[:alnum:]_]}"
 			ret=1
 		fi
 	done
@@ -2972,7 +2972,7 @@ check_vcs_software() {
 					if [[ -n "$uninstalled" ]] && (( ! NODEPS || ( VERIFYSOURCE && !DEP_BIN ) )); then
 						if ! in_array "$client" ${all_deps[@]}; then
 							error "$(gettext "Cannot find the %s package needed to handle %s sources.")" \
-									"$client" "${proto%%+*}"
+								"$client" "${proto%%+*}"
 							ret=1
 						fi
 					fi
@@ -3091,7 +3091,7 @@ check_build_status() {
 		fullver=$(get_full_version)
 		pkgarch=$(get_pkg_arch)
 		if [[ -f $PKGDEST/$(get_pkg_basename)${PKGEXT} ]] \
-				 && ! (( FORCE || SOURCEONLY || NOBUILD || NOARCHIVE)); then
+			&& ! (( FORCE || SOURCEONLY || NOBUILD || NOARCHIVE)); then
 			if (( INSTALL )); then
 				warning "$(gettext "A package has already been built, installing existing package...")"
 				install_package
@@ -3259,12 +3259,12 @@ parseopts() {
 						if (( i < ${#1} - 1 )); then
 							OPTRET+=("${1:i+1}")
 							break
-						# if we're at the end, grab the the next positional, if it exists
+						    # if we're at the end, grab the the next positional, if it exists
 						elif (( i == ${#1} - 1 )) && [[ $2 ]]; then
 							OPTRET+=("$2")
 							shift
 							break
-						# parse failure
+						    # parse failure
 						else
 							printf "makepkg: $(gettext "option requires an argument") -- '%s'\n" "$opt" >&2
 							OPTRET=(--)
@@ -3283,7 +3283,7 @@ parseopts() {
 							printf "makepkg: $(gettext "option '%s' does not allow an argument")\n" "--$opt" >&2
 							OPTRET=(--)
 							return 1
-						# --longopt
+						    # --longopt
 						else
 							OPTRET+=("--$opt")
 						fi
@@ -3292,11 +3292,11 @@ parseopts() {
 						# --longopt=optarg
 						if [[ $optarg ]]; then
 							OPTRET+=("--$opt" "$optarg")
-						# --longopt optarg
+						    # --longopt optarg
 						elif [[ $2 ]]; then
 							OPTRET+=("--$opt" "$2" )
 							shift
-						# parse failure
+						    # parse failure
 						else
 							printf "makepkg: $(gettext "option '%s' requires an argument")\n" "--$opt" >&2
 							OPTRET=(--)
@@ -3408,10 +3408,10 @@ ARGLIST=("$@")
 # Parse Command Line Options.
 OPT_SHORT="AcCdefFghiLmop:rRsSV"
 OPT_LONG=('allsource' 'check' 'clean' 'cleanbuild' 'config:' 'force' 'geninteg'
-          'help' 'holdver' 'ignorearch' 'install' 'key:' 'log' 'noarchive' 'nobuild'
-          'nocolor' 'nocheck' 'nodeps' 'noextract' 'noprepare' 'nosign' 'pkg:' 'repackage'
-          'rmdeps' 'sign' 'skipchecksums' 'skipinteg' 'skippgpcheck' 'source' 'syncdeps'
-          'verifysource' 'version')
+    'help' 'holdver' 'ignorearch' 'install' 'key:' 'log' 'noarchive' 'nobuild'
+    'nocolor' 'nocheck' 'nodeps' 'noextract' 'noprepare' 'nosign' 'pkg:' 'repackage'
+    'rmdeps' 'sign' 'skipchecksums' 'skipinteg' 'skippgpcheck' 'source' 'syncdeps'
+    'verifysource' 'version')
 
 # Pacman Options
 OPT_LONG+=('needed' 'noprogressbar')
@@ -3766,7 +3766,7 @@ msg "$(gettext "Making package: %s")" "$pkgbase $basever ($(date))"
 # if we are creating a source-only package, go no further
 if (( SOURCEONLY )); then
 	if [[ -f $SRCPKGDEST/${pkgbase}-${basever}${SRCEXT} ]] \
-			&& (( ! FORCE )); then
+		&& (( ! FORCE )); then
 		error "$(gettext "A source package has already been built. (use %s to overwrite)")" "-f"
 		exit 1
 	fi
@@ -3778,7 +3778,7 @@ if (( SOURCEONLY )); then
 	if (( SOURCEONLY == 2 )); then
 		download_sources allarch
 	elif ( (( ! SKIPCHECKSUMS )) || \
-			( (( ! SKIPPGPCHECK )) && source_has_signatures ) ); then
+		( (( ! SKIPPGPCHECK )) && source_has_signatures ) ); then
 		download_sources allarch novcs
 	fi
 	check_source_integrity all
