@@ -44,7 +44,7 @@ declare -r startdir="$PWD"
 packaging_options=('strip' 'docs' 'libtool' 'staticlibs' 'emptydirs' 'zipman'
     'purge' 'upx' 'debug')
 other_options=('ccache' 'distcc' 'buildflags' 'makeflags')
-splitpkg_overrides=('pkgdesc' 'arch' 'url' 'license' 'groups' 'depends' 'branch'
+splitpkg_overrides=('pkgdesc' 'arch' 'url' 'license' 'section' 'priority' 'depends' 'branch'
     'optdepends' 'provides' 'conflicts' 'replaces' 'backup'
     'options' 'install' 'changelog')
 readonly -a packaging_options other_options splitpkg_overrides
@@ -2126,7 +2126,7 @@ srcinfo_write_section_details() {
 
 srcinfo_write_global() {
 	local singlevalued=(pkgdesc pkgver pkgrel epoch url install changelog)
-	local multivalued=(arch groups branch license checkdepends makedepends
+	local multivalued=(arch section priority branch license checkdepends makedepends
 	    depends optdepends provides conflicts replaces
 	    noextract options backup
 	    source {md5,sha{1,224,256,384,512}}sums)
@@ -2138,7 +2138,7 @@ srcinfo_write_global() {
 
 srcinfo_write_package() {
 	local singlevalued=(pkgdesc url install changelog)
-	local multivalued=(arch groups branch license checkdepends depends optdepends
+	local multivalued=(arch section priority branch license checkdepends depends optdepends
 	    provides conflicts replaces options backup)
 
 	srcinfo_open_section 'pkgname' "$1"
@@ -2193,12 +2193,12 @@ write_pkginfo() {
 	mapfile -t depends < <(find_libdepends)
 
 	[[ $replaces ]]     && printf "Replaces: %s\n"      "${replaces[@]}"
-	[[ $groups ]]       && printf "Section: %s\n"       "${groups[@]}"
+	[[ $section ]]      && printf "Section: %s\n"       "$section"
+	[[ $priority ]]     && printf "Priority: %s\n"      "$priority"
 	[[ $conflicts ]]    && printf "Conflicts: %s\n"     "${conflicts[@]}"
 	[[ $provides ]]     && printf "Provides: %s\n"      "${provides[@]}"
 	[[ $depends ]]      && printf "Depends: %s\n"       "${depends[@]}"
 	[[ $optdepends ]]   && printf "Recommends: %s\n"    "${optdepends[@]//+([[:space:]])/ }"
-	[[ $groups ]]       && printf "Section: %s\n"       "${groups[@]}"
 
 
 	printf "X-makedebpkg-version: %s\n" "$makedebpkg_version"
@@ -2232,6 +2232,11 @@ write_debian_changelog() {
     printf " -- %s %s\n" "$packager" "$(date --rfc-2822)"
 }
 
+write_debian_files() {
+    local pkg_file=$1
+    printf "%s %s %s" "$pkg_file" "$section" "$priority"
+}
+
 create_package() {
 	(( NOARCHIVE )) && return
 
@@ -2249,10 +2254,16 @@ create_package() {
     mkdir -p "$doc"
 
 	pkgarch=$(get_pkg_arch)
+    local pkg_name="$(get_pkg_basename)_$pkgarch"
+	local pkg_file_base="$pkg_name$PKGEXT"
+    local pkg_file="$PKGDEST/$pkg_file_base"
+
     mkdir DEBIAN
 	write_pkginfo > DEBIAN/control
     # Dummy changelog for dpkg-genchages, signature etc
     write_debian_changelog > DEBIAN/changelog
+    # For dpkg-genchanges
+    write_debian_files $pkg_file_base > DEBIAN/files
 	local comp_files=()
 
     # Install special debian hook scripts
@@ -2277,8 +2288,6 @@ create_package() {
 		comp_files+=("$doc/changelog")
 	fi
 
-	# dpkg -b it up
-	local pkg_file="$PKGDEST/$(get_pkg_basename)_$pkgarch$PKGEXT"
 	local ret=0
 
 	[[ -f $pkg_file ]] && rm -f "$pkg_file"
@@ -2341,7 +2350,7 @@ create_debug_package() {
 	pkgdesc="Detached debugging symbols for $pkgname"
 	pkgname=$pkgname-debug
 
-	unset groups optdepends provides conflicts replaces backup install changelog
+	unset optdepends provides conflicts replaces backup install changelog
 
 	create_package
 }
@@ -2797,6 +2806,29 @@ lint_branch() {
     return 0
 }
 
+lint_section() {
+    if [ ! -z "$section" ]; then
+        echo "$section"
+        if ! [[ "$section" =~ ^[a-zA-Z0-9]+$ ]]; then
+            error "Section value should be alphanumeric"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+lint_priority() {
+    if [ ! -z "$priority" ]; then
+        if ! [[ "$priority" =~ ^[a-zA-Z0-9]+$ ]]; then
+            error "Priority value should be alphanumeric"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 lint_options() {
 	local ret=0 list name kopt options_list
 
@@ -2881,6 +2913,8 @@ check_sanity() {
 		lint_backup
 		lint_optdepends
         lint_branch
+        lint_section
+        lint_priority
 		lint_changelog
 		lint_install
 		lint_options
@@ -3626,7 +3660,7 @@ else
 	fi
 fi
 
-unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license groups provides branch
+unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license section priority provides branch
 unset md5sums replaces depends conflicts backup source install changelog build
 unset makedepends optdepends options noextract validpgpkeys
 
