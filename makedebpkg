@@ -2340,7 +2340,6 @@ create_package() {
     msg2 "$(gettext "Generating changes file $pkgdirbase/${pkg_name}.changes")"
     local deb_changes="$pkgdirbase/${pkg_name}.changes"
     dpkg-genchanges > "$deb_changes"
-    sign "$deb_changes"
 
     if (( ret )); then
         warning "$(gettext "Failed to create symlink to package file.")"
