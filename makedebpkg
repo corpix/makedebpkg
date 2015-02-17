@@ -874,7 +874,7 @@ update_pkgver() {
     fi
 
     if [[ -n $newpkgver && $newpkgver != "$pkgver" ]]; then
-        if [[ -f $BUILDFILE && -w $BUILDFILE ]]; then
+        if [[ -e $BUILDFILE && -w $BUILDFILE ]]; then
             if ! sed --follow-symlinks -i "s:^pkgver=[^ ]*:pkgver=$newpkgver:" "$BUILDFILE"; then
                 error "$(gettext "Failed to update %s from %s to %s")" \
                     "pkgver" "$pkgver" "$newpkgver"
@@ -2318,8 +2318,8 @@ create_package() {
 
     local ret=0
 
-    [[ -f $pkg_file ]] && rm -f "$pkg_file"
-    [[ -f $pkg_file.dsc ]] && rm -f "$pkg_file.dsc"
+    [[ -e $pkg_file ]] && rm -f "$pkg_file"
+    [[ -e $pkg_file.dsc ]] && rm -f "$pkg_file.dsc"
 
     # when fileglobbing, we want * in an empty directory to expand to
     # the null string rather than itself
@@ -2360,7 +2360,7 @@ create_package() {
         rm -f "${pkg_file/$PKGDEST/$startdir}"
         ln -s "${pkg_file}" "${pkg_file/$PKGDEST/$startdir}"
         ret=$?
-        if [[ -f $pkg_file.dsc ]]; then
+        if [[ -e $pkg_file.dsc ]]; then
             rm -f "${pkg_file/$PKGDEST/$startdir}.dsc"
             ln -s "$pkg_file.dsc" "${pkg_file/$PKGDEST/$startdir}.dsc"
         fi
@@ -2455,7 +2455,7 @@ create_srcpackage() {
         done
 
         for file in "${files[@]}"; do
-            if [[ $file && ! -f "${srclinks}/${pkgbase}/$file" ]]; then
+            if [[ $file && ! -e "${srclinks}/${pkgbase}/$file" ]]; then
                 msg2 "$(gettext "Adding %s file (%s)...")" "$i" "${file}"
                 cp "${startdir}/$file" "${srclinks}/${pkgbase}/"
             fi
@@ -3170,7 +3170,7 @@ check_build_status() {
     if (( ! SPLITPKG )); then
         fullver=$(get_full_version)
         pkgarch=$(get_pkg_arch)
-        if [[ -f $PKGDEST/$(get_pkg_basename)${PKGEXT} ]] \
+        if [[ -e $PKGDEST/$(get_pkg_basename)${PKGEXT} ]] \
             && ! (( FORCE || SOURCEONLY || NOBUILD || NOARCHIVE)); then
             if (( INSTALL )); then
                 warning "$(gettext "A package has already been built, installing existing package...")"
@@ -3189,7 +3189,7 @@ check_build_status() {
         for pkg in ${pkgname[@]}; do
             fullver=$(get_full_version)
             pkgarch=$(get_pkg_arch $pkg)
-            if [[ -f $PKGDEST/${pkg}-${fullver}-${pkgarch}${PKGEXT} ]]; then
+            if [[ -e $PKGDEST/${pkg}-${fullver}-${pkgarch}${PKGEXT} ]]; then
                 somepkgbuilt=1
             else
                 allpkgbuilt=0
@@ -3714,7 +3714,7 @@ unset md5sums replaces depends conflicts backup source install changelog build
 unset makedepends optdepends options noextract validpgpkeys
 
 BUILDFILE=${BUILDFILE:-$BUILDSCRIPT}
-if [[ ! -f $BUILDFILE ]]; then
+if [[ ! -e $BUILDFILE ]]; then
     error "$(gettext "%s does not exist.")" "$BUILDFILE"
     exit 1
 else
@@ -3854,7 +3854,7 @@ msg "$(gettext "Making package: %s")" "$pkgbase $basever ($(date))"
 
 # if we are creating a source-only package, go no further
 if (( SOURCEONLY )); then
-    if [[ -f $SRCPKGDEST/${pkgbase}-${basever}${SRCEXT} ]] \
+    if [[ -e $SRCPKGDEST/${pkgbase}-${basever}${SRCEXT} ]] \
         && (( ! FORCE )); then
         error "$(gettext "A source package has already been built. (use %s to overwrite)")" "-f"
         exit 1
