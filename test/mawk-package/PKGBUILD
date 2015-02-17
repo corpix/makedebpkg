@@ -16,7 +16,7 @@ build() {
   sed -ie 's|log()|log(1.0)|g' configure
   sed -ie "s|trap  *0|trap 'exit 0' 0|g" test/*
   ./configure
-  make -j1
+  make -j2
 }
 
 package () {
