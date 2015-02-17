@@ -2326,6 +2326,9 @@ create_package() {
         exit 1 # TODO: error code
     fi
 
+    if [ -e $pkg_file ]; then
+        rm -f $pkg_file
+    fi
     ln -s $pkg_file_local $pkg_file
 
     msg2 "$(gettext "It's time to rename $pkgdir/DEBIAN to $pkgdir/debian")"
@@ -2334,19 +2337,10 @@ create_package() {
     msg2 "$(gettext "Recreating debian/control file with source section")"
     write_debian_control "source" "package" > $debiandir/control
 
-    #create_signature "$pkg_file"
     msg2 "$(gettext "Generating changes file $pkgdirbase/${pkg_name}.changes")"
-    dpkg-genchanges > "$pkgdirbase/${pkg_name}.changes"
-
-    if (( ! ret )) && [[ ! "$PKGDEST" -ef "${startdir}" ]]; then
-        rm -f "${pkg_file/$PKGDEST/$startdir}"
-        ln -s "${pkg_file}" "${pkg_file/$PKGDEST/$startdir}"
-        ret=$?
-        if [[ -e $pkg_file.dsc ]]; then
-            rm -f "${pkg_file/$PKGDEST/$startdir}.dsc"
-            ln -s "$pkg_file.dsc" "${pkg_file/$PKGDEST/$startdir}.dsc"
-        fi
-    fi
+    local deb_changes="$pkgdirbase/${pkg_name}.changes"
+    dpkg-genchanges > "$deb_changes"
+    sign "$deb_changes"
 
     if (( ret )); then
         warning "$(gettext "Failed to create symlink to package file.")"
@@ -2375,26 +2369,20 @@ create_debug_package() {
     create_package
 }
 
-create_signature() {
+sign() {
     if [[ $SIGNPKG != 'y' ]]; then
         return
     fi
     local ret=0
     local filename="$1"
-    msg "$(gettext "Signing package...")"
+    msg "$(gettext "Signing file %s ...")" "$filename"
 
-    local SIGNWITHKEY=""
-    if [[ -n $GPGKEY ]]; then
-        SIGNWITHKEY="-u ${GPGKEY}"
-    fi
-
-    gpg --detach-sign --use-agent ${SIGNWITHKEY} --no-armor "$filename" &>/dev/null || ret=$?
-
+    debsign -k ${GPGKEY} "$filename" &>/dev/null || ret=$?
 
     if (( ! ret )); then
-        msg2 "$(gettext "Created signature file %s.")" "$filename.dsc"
+        msg2 "$(gettext "Signed %s.")" "$filename"
     else
-        warning "$(gettext "Failed to sign package file.")"
+        warning "$(gettext "Failed to sign %s.")" "$filename"
     fi
 }
 
@@ -2455,13 +2443,12 @@ create_srcpackage() {
     # Create symlink to directory with debian control files for dpkg-source
     ln -s "$debiandir" "debian"
     write_debian_control "source" "package" > debian/control
+
     #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgbase}; then
-    if ! LANG=C dpkg-source -b ./; then
-        error "$(gettext "Failed to create source package file.")"
-        exit 1 # TODO: error code
-    else
+    if LANG=C dpkg-source -b ./; then
         # dpkg-source -b will create files one level upper
         cd_safe "${srclinks}"
+        sign "$(get_pkg_basename).dsc"
         for f in "${pkg_files[@]}"; do
             # Moving it for dpkg-changes etc
             mv "${f}" "${pkgdirbase}/" || ret=$?
@@ -2478,9 +2465,10 @@ create_srcpackage() {
                 exit 1
             fi
         done
+    else
+        error "$(gettext "Failed to create source package file.")"
+        exit 1 # TODO: error code
     fi
-
-    #create_signature "$pkg_file"
 
     cd_safe "${startdir}"
     rm -rf "${srclinks}"
