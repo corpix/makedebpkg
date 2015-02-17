@@ -2382,7 +2382,8 @@ sign() {
     if (( ! ret )); then
         msg2 "$(gettext "Signed %s.")" "$filename"
     else
-        warning "$(gettext "Failed to sign %s.")" "$filename"
+        error "$(gettext "Failed to sign %s.")" "$filename"
+        exit 1
     fi
 }
 
