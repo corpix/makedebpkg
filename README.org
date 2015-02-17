@@ -4,6 +4,7 @@
   More info could be found at Archlinux [[https://wiki.archlinux.org][wiki]] on [[https://wiki.archlinux.org/index.php/PKGBUILD][PKGBUILD]] and [[https://wiki.archlinux.org/index.php/Makepkg][makepkg]] pages.
 
   [[https://drone.io/github.com/corpix/makedebpkg/status.png]]
+  [[https://drone.io/github.com/corpix/makedebpkg][Build]] history.
 
 ** UNSTABLE!
    This tool in active development at now. !MANY! features could be broken, so use it at your own risk!
