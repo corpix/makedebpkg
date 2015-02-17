@@ -2463,7 +2463,7 @@ create_srcpackage() {
     ln -s "$debiandir" "debian"
     write_debian_control "source" "package" > debian/control
     #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgbase}; then
-	if ! LANG=C dpkg-source -b ./; then
+    if ! LANG=C dpkg-source -b ./; then
 		error "$(gettext "Failed to create source package file.")"
 		exit 1 # TODO: error code
     else
