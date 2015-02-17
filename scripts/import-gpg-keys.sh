@@ -10,7 +10,6 @@ gpg --import assets/public.gpg
 gpg --allow-secret-key-import --import assets/private.gpg
 
 cat >.gpg-edit-key.input<<EOF
-EOF
 passwd
 q1w2e3q1w2e3
 
