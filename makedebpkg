@@ -1045,16 +1045,22 @@ source_has_signatures() {
     return 1
 }
 
+run_privileged() {
+    if type -p sudo >/dev/null; then
+        sudo $@
+    else
+        su root -c -- $@
+    fi
+}
+
 run_dpkg() {
-    local cmd
-    cmd=("$DPKG_PATH" "$@")
-    "${cmd[@]}"
+    $DPKG_PATH $@
 }
 
 run_aptget() {
     local cmd
     cmd=("$APTGET_PATH" "$@")
-    "${cmd[@]}"
+    run_privileged "${cmd[@]}"
 }
 
 list_installed_packages() {
@@ -1073,7 +1079,7 @@ check_deps() {
         dpkg_out=$(run_dpkg -s $package 2>&1 >/dev/null)
         ret=$?
         if (( ret )); then
-            if [[ "$dpkg_out" =~ "*not installed*" ]]; then
+            if [[ "$dpkg_out" == *"not installed"* ]]; then
                 not_installed+="$package"
             else
                 error "$(gettext "'%s' returned a fatal error (%i): %s")" "$DPKG" "$ret" "$dpkg_out"
@@ -1164,7 +1170,7 @@ remove_deps() {
 
     msg "Removing installed dependencies..."
     # exit cleanly on failure to remove deps as package has been built successfully
-    if ! run_aptget purge ${deplist[@]}; then
+    if ! run_aptget purge -y ${deplist[@]}; then
         warning "$(gettext "Failed to remove installed dependencies.")"
         return 0
     fi

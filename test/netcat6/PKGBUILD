@@ -1,0 +1,30 @@
+pkgname=netcat6
+pkgver=1.0
+pkgrel=1
+pkgdesc='Improved IPv6-ready version of Netcat, the network piping application'
+arch=('i686' 'amd64')
+url='http://www.deepspace6.net/projects/netcat6.html'
+license=(GPL)
+depends=(bluez)
+makedepends=(libc6)
+priority=extra
+section=unknown
+branch=unstable
+source=(http://fossies.org/unix/privat/nc6-${pkgver}.tar.bz2)
+md5sums=('5074bc51989420a1f68716f93322030f')
+
+# Install missing deps and remove after build success
+# It's equivalent for -s -r options passed to makedebpkg directly
+DEP_BIN=1
+RMDEPS=1
+
+build() {
+  cd "${srcdir}"/nc6-${pkgver}
+  ./configure --prefix=/usr --mandir=/usr/share/man
+  make
+}
+
+package() {
+  cd "${srcdir}"/nc6-${pkgver}
+  make DESTDIR="${pkgdir}" install
+}
