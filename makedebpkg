@@ -2141,6 +2141,16 @@ write_srcinfo() {
     done
 }
 
+get_packager() {
+    if [[ -n $PACKAGER ]]; then
+        local packager="$PACKAGER"
+    else
+        local packager=$D_PACKAGER
+    fi
+
+    printf "%s" "$packager"
+}
+
 write_debian_control() {
     local -a sections=("${@}")
     if [ -z "$sections" ]; then
@@ -2157,16 +2167,10 @@ write_debian_control() {
 }
 
 write_debian_control_source_section() {
-    if [[ -n $PACKAGER ]]; then
-        local packager="$PACKAGER"
-    else
-        local packager=$D_PACKAGER
-    fi
-
     msg2 "$(gettext "Generating source section of %s ...")" "$debiandir/control"
 
     printf "Source: %s\n" "$pkgname"
-    printf "Maintainer: %s\n" "$packager"
+    printf "Maintainer: %s\n" "$(get_packager)"
 }
 
 write_debian_control_package_section() {
@@ -2187,6 +2191,7 @@ write_debian_control_package_section() {
     spd=("${spd[@]#[[:space:]]}")
     spd=("${spd[@]%[[:space:]]}")
 
+    printf "Maintainer: %s\n" "$(get_packager)"
     printf "Description: %s\n" "$spd"
     printf "Homepage: %s\n" "$url"
     printf "Installed-Size: %s\n" "$size"
