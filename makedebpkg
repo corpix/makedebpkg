@@ -2340,6 +2340,7 @@ create_package() {
     msg2 "$(gettext "Generating changes file $pkgdirbase/${pkg_name}.changes")"
     local deb_changes="$pkgdirbase/${pkg_name}.changes"
     dpkg-genchanges > "$deb_changes"
+    sign "$deb_changes"
 
     if (( ret )); then
         warning "$(gettext "Failed to create symlink to package file.")"
@@ -2448,7 +2449,6 @@ create_srcpackage() {
     if LANG=C dpkg-source -b ./; then
         # dpkg-source -b will create files one level upper
         cd_safe "${srclinks}"
-        sign "$(get_pkg_basename).dsc"
         for f in "${pkg_files[@]}"; do
             # Moving it for dpkg-changes etc
             mv "${f}" "${pkgdirbase}/" || ret=$?
