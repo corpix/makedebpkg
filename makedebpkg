@@ -2211,7 +2211,7 @@ write_debian_control_package_section() {
     [[ $priority ]]     && printf "Priority: %s\n"      "$priority"
     [[ $conflicts ]]    && printf "Conflicts: %s\n"     "${conflicts[@]}"
     [[ $provides ]]     && printf "Provides: %s\n"      "${provides[@]}"
-    [[ $depends ]]      && printf "Depends: %s\n"       "${depends[@]}"
+    [[ $depends ]]      && printf "Depends: %s\n"       "$depends"
     [[ $optdepends ]]   && printf "Recommends: %s\n"    "${optdepends[@]//+([[:space:]])/ }"
 
 
