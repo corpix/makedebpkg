@@ -880,7 +880,7 @@ update_pkgver() {
                     "pkgver" "$pkgver" "$newpkgver"
                 exit 1
             fi
-            sed --follow-symlinks -i "s:^pkgrel=[^ ]*:pkgrel=1:" "$BUILDFILE"
+            pkgver="$newpkgver"
             source_safe "$BUILDFILE"
             local fullver=$(get_full_version)
             msg "$(gettext "Updated version: %s")" "$pkgbase $fullver"
