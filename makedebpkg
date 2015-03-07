@@ -2375,7 +2375,7 @@ sign() {
     local filename="$1"
     msg "$(gettext "Signing file %s ...")" "$filename"
 
-    debsign -k ${GPGKEY} "$filename" &>/dev/null || ret=$?
+    debsign -k${GPGKEY} "$filename" &>/dev/null || ret=$?
 
     if (( ! ret )); then
         msg2 "$(gettext "Signed %s.")" "$filename"
@@ -2388,7 +2388,7 @@ sign() {
 create_srcpackage() {
     local ret=0
     msg "$(gettext "Creating source package...")"
-    local srclinks="$(mktemp -d "$startdir"/srclinks.XXXXXXXXX)"
+    srclinks="$(mktemp -d "$startdir"/srclinks.XXXXXXXXX)"
     mkdir "${srclinks}/${pkgbase}"
 
 
