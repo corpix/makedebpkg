@@ -2135,10 +2135,15 @@ srcinfo_write_package() {
 }
 
 get_packager() {
+    local packager
     if [[ -n $PACKAGER ]]; then
-        local packager="$PACKAGER"
+        packager="$PACKAGER"
     else
-        local packager=$D_PACKAGER
+        if [[ -n $maintainer ]]; then
+            packager="$maintainer"
+        else
+            packager="$D_PACKAGER"
+        fi
     fi
 
     printf "%s" "$packager"
