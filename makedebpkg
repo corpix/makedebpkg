@@ -2224,7 +2224,7 @@ write_debian_control_package_section() {
                 ;;
         esac
     done
-    printf "X-makedebpkgopt: %s\n" $(join " " "${x_options[@]}")
+    printf "X-makedebpkgopt: %s" $(join " " "${x_options[@]}")
 }
 
 write_debian_changelog() {
