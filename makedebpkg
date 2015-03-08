@@ -2489,11 +2489,14 @@ create_srcpackage() {
     ln -s "$debiandir" "debian"
     write_debian_control "source" "package" > debian/control
 
+    msg2 "$(gettext "Running dpkg-source...")"
     ret=0
+    cd ..
     LANG=C dpkg-source \
         -Z${SOURCE_COMPRESSION:-gzip} \
         -z${SOURCE_COMPRESSION_LEVEL:-fast} \
-        -b ./ || ret=$?
+        -b ${pkgbase} || ret=$?
+    cd - > /dev/null
 
     if [ $ret = 0 ]; then
         # dpkg-source -b will create files one level upper
@@ -2920,12 +2923,7 @@ lint_options() {
 }
 
 lint_source() {
-    local idx=("${!source[@]}")
-
-    if (( ${#source[*]} > 0 && (idx[-1] + 1) != ${#source[*]} )); then
-        error "$(gettext "Sparse arrays are not allowed for source")"
-        return 1
-    fi
+    echo "skiped lint_source"
 }
 
 lint_pkglist() {
