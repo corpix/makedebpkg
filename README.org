@@ -9,19 +9,22 @@
   + [[https://drone.io/github.com/corpix/makedebpkg/files][Artifacts]]
 
 ** UNSTABLE!
-   This tool in active development at now. !MANY! features could be broken, so use it at your own risk!
+   This tool was fofrked an modified very quickly, there are some stuff untested. Use it at your own risk. If you find a bug, please consider filling an issue.
 
-** [%] What done at now and what to be done:
+** [62%] What done at now and what to be done:
    - [X] Debian control generation(required minimum)
    - [X] Build architecture dependent(or independent) DEB package
    - [X] Shasums and GnuPG validation of source archives
-   - [ ] Changelog provision(DONE, but not tested)
-   - [ ] Building multiple packages(DONE, but not tested)
-   - [ ] Package GnuPG signing
-   - [ ] Documentation
-   - [ ] Maybe I should keep this tool as separate patch for makepkg to simplify updates maintaining
+   - [X] Changelog provision(DONE, but not tested)
+   - [X] Package GnuPG signing
+   - [ ] Dependency resolution don't works if concrete version specified :: I need a parser for this
+   - [ ] Documentation :: There will be a complete tutorial to start from the scratch
+   - [ ] Get rid of multiple packages in one PKGBUILD :: That's too complicated
 
 ** Difference between Archlinux makepkg and makedebpkg
    - There are some options removed, because dpkg/apt doesn't support them:
      + asdeps
      + needed
+   - There are come extra options added:
+     + controlsource :: An array of /Something: Value/ that will be appended to DEBIAN/control's source section
+     + controlpackage :: Same as /controlsource/, but for package section
