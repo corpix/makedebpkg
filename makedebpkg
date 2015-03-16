@@ -2179,10 +2179,10 @@ generate_debian_control_source_section() {
     msg2 "$(gettext "Generating source section of %s ...")" "$debiandir/control"
 
     printf "Source: %s\n" "$pkgname"
+    printf "Maintainer: %s\n" "$(get_packager)"
 
     source_safe "$BUILDFILE" &> /dev/null
     if [ "${#controlsource[@]}" -ge '0' ]; then
-        printf "\n"
         printf "%s" "${controlsource[@]}"
     fi
 }
@@ -2239,11 +2239,10 @@ generate_debian_control_package_section() {
                 ;;
         esac
     done
-    printf "X-makedebpkgopt: %s" $(join " " "${x_options[@]}")
+    printf "X-makedebpkgopt: %s\n" $(join " " "${x_options[@]}")
 
     source_safe "$BUILDFILE" &> /dev/null
     if [ "${#controlpackage[@]}" -ge '0' ]; then
-        printf "\n"
         printf "%s" "${controlpackage[@]}"
     fi
 }
