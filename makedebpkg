@@ -2155,31 +2155,32 @@ write_debian_control() {
         sections[0]=package
     fi
 
-    local s
-    for s in "${sections[@]}"; do
-        case $s in
-            "package"|"source") write_debian_control_${s}_section; printf "\n" ;;
+    local section
+    for section in "${sections[@]}"; do
+        case $section in
+            "package"|"source")
+                # There should be only one line break at the end
+                # Important for some indexing tools
+                printf "%s\n" "$(generate_debian_control_${section}_section | grep -v '^$' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+                ;;
             *) error "No handler for debian control section '$section'"; exit 1 ;;
         esac
     done
 }
 
-write_debian_control_source_section() {
+generate_debian_control_source_section() {
     msg2 "$(gettext "Generating source section of %s ...")" "$debiandir/control"
 
     printf "Source: %s\n" "$pkgname"
-    printf "Maintainer: %s" "$(get_packager)"
 
     source_safe "$BUILDFILE" &> /dev/null
     if [ "${#controlsource[@]}" -ge '0' ]; then
         printf "\n"
         printf "%s" "${controlsource[@]}"
     fi
-    # At the end of the DEBIAN/control should be no \n
-    # This will bread mini-dinstall and Packages list in debian repo
 }
 
-write_debian_control_package_section() {
+generate_debian_control_package_section() {
     local size="$(/usr/bin/du -sk --apparent-size)"
     size="$(( ${size%%[^0-9]*} * 1024 ))"
 
@@ -2192,7 +2193,6 @@ write_debian_control_package_section() {
     printf "Package: %s\n" "$pkgname"
     printf "Version: %s\n" "$fullver"
 
-    # TODO: all fields should have this treatment
     local spd="${pkgdesc//+([[:space:]])/ }"
     spd=("${spd[@]#[[:space:]]}")
     spd=("${spd[@]%[[:space:]]}")
@@ -2239,8 +2239,6 @@ write_debian_control_package_section() {
         printf "\n"
         printf "%s" "${controlpackage[@]}"
     fi
-    # At the end of the DEBIAN/control should be no \n
-    # This will bread mini-dinstall and Packages list in debian repo
 }
 
 write_debian_changelog() {
