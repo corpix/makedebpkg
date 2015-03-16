@@ -2150,20 +2150,27 @@ get_packager() {
 }
 
 write_debian_control() {
-    local -a sections=("${@}")
-    if [ -z "$sections" ]; then
-        sections[0]=package
+    local -a control_sections=("${@}")
+    if [ -z "$control_sections" ]; then
+        control_sections[0]=package
     fi
 
-    local section
-    for section in "${sections[@]}"; do
-        case $section in
+    local control_section
+    local control_sections_num="${#control_sections[@]}"
+    local ctr=0
+    for control_section in "${control_sections[@]}"; do
+        case $control_section in
             "package"|"source")
+                ctr="$(expr $ctr + 1)"
                 # There should be only one line break at the end
                 # Important for some indexing tools
-                printf "%s\n" "$(generate_debian_control_${section}_section | grep -v '^$' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+                printf "%s\n" "$(generate_debian_control_${control_section}_section | grep -v '^$' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+                if [ "$ctr" -lt "$control_sections_num" ]; then
+                    # Print extra delimiter between sections
+                    printf "\n"
+                fi
                 ;;
-            *) error "No handler for debian control section '$section'"; exit 1 ;;
+            *) error "No handler for debian control section '$control_section'"; exit 1 ;;
         esac
     done
 }
@@ -2347,6 +2354,10 @@ create_package() {
         rm -f $pkg_file
     fi
     ln -s $pkg_file_local $pkg_file
+    ret=$?
+    if (( ret )); then
+        warning "$(gettext "Failed to create symlink to package file.")"
+    fi
 
     msg2 "$(gettext "It's time to rename $pkgdir/DEBIAN to $pkgdir/debian")"
     mv DEBIAN debian
@@ -2357,11 +2368,12 @@ create_package() {
     msg2 "$(gettext "Generating changes file $pkgdirbase/${pkg_name}.changes")"
     local deb_changes="$pkgdirbase/${pkg_name}.changes"
     dpkg-genchanges > "$deb_changes"
-    sign "$deb_changes"
-
+    ret=$?
     if (( ret )); then
-        warning "$(gettext "Failed to create symlink to package file.")"
+        error "$(gettext "Failed while trying to generate changes file")"
+        exit $ret
     fi
+    sign "$deb_changes"
 }
 
 create_debug_package() {
@@ -2396,11 +2408,11 @@ sign() {
 
     debsign -k${GPGKEY} "$filename" &>/dev/null || ret=$?
 
-    if (( ! ret )); then
-        msg2 "$(gettext "Signed %s.")" "$filename"
-    else
+    if (( ret )); then
         error "$(gettext "Failed to sign %s.")" "$filename"
-        exit 1
+        exit $ret
+    else
+        msg2 "$(gettext "Signed %s.")" "$filename"
     fi
 }
 
