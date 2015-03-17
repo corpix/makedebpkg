@@ -2218,8 +2218,8 @@ generate_debian_control_package_section() {
     [[ $priority ]]     && printf "Priority: %s\n"      "$priority"
     [[ $conflicts ]]    && printf "Conflicts: %s\n"     "${conflicts[@]}"
     [[ $provides ]]     && printf "Provides: %s\n"      "${provides[@]}"
-    [[ $depends ]]      && printf "Depends: %s\n"       "$depends"
-    [[ $optdepends ]]   && printf "Recommends: %s\n"    "${optdepends[@]//+([[:space:]])/ }"
+    [[ $depends ]]      && printf "Depends: %s\n"       "$(join ", " "${depends[@]}")"
+    [[ $optdepends ]]   && printf "Recommends: %s\n"    "$(join ", " "${optdepends[@]}")"
 
 
     printf "X-makedebpkg-version: %s\n" "$makedebpkg_version"
