@@ -1,3 +1,8 @@
+
+# Testing purpose
+# Will force makedebpkg to build package with all arch on amd64
+export CARCH='all'
+
 pkgname=('split-package-one' 'split-package-two')
 pkgver=2
 pkgrel=1
