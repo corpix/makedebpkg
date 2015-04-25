@@ -2273,7 +2273,7 @@ prepare_debian() {
 create_package() {
     (( NOARCHIVE )) && return
 
-    if [[ ! -d $pkgdir ]]; then
+    if [[ ! -d "$pkgdir" ]]; then
         error "$(gettext "Missing %s directory.")" "\$pkgdir/"
         plain "$(gettext "Aborting...")"
         exit 1 # $E_MISSING_PKGDIR
@@ -2290,19 +2290,19 @@ create_package() {
     mkdir -p "$doc"
 
     local pkg_name="$(get_pkg_basename)_$(get_pkg_arch)"
-    local pkg_file_base="$pkg_name$PKGEXT"
-    local pkg_file="$PKGDEST/$pkg_file_base"
-    local pkg_file_local="$pkgdirbase/$pkg_file_base"
+    local pkg_full_name="$pkg_name$PKGEXT"
+    local pkg_link="$PKGDEST/$pkg_full_name"
+    local pkg_file="$pkgdirbase/$pkg_full_name"
 
-    write_debian_control "package" > $debiandir/control
+    write_debian_control "package" > "$debiandir/control"
     # For dpkg-genchanges
-    write_debian_files $pkg_file_base > $debiandir/files
+    write_debian_files "$pkg_full_name" > "$debiandir/files"
     local comp_files=()
 
     # Install special debian hook scripts
     for i in "preinst" "postinst" "prerm" "postrm"; do
         if [ -f "$startdir/install/$i" ]; then
-            if ! cp "$startdir/install/$i" $debiandir/; then
+            if ! cp "$startdir/install/$i" "$debiandir/"; then
                 error "$(gettext "Failed to add %s file to package")" "$i"
                 exit 1
             fi
@@ -2323,8 +2323,8 @@ create_package() {
 
     local ret=0
 
-    [[ -e $pkg_file ]] && rm -f "$pkg_file"
-    [[ -e $pkg_file.dsc ]] && rm -f "$pkg_file.dsc"
+    [[ -e "$pkg_link" ]] && rm -f "$pkg_link"
+    [[ -e "${pkg_link}.dsc" ]] && rm -f "${pkg_link}.dsc"
 
     # when fileglobbing, we want * in an empty directory to expand to
     # the null string rather than itself
@@ -2339,7 +2339,7 @@ create_package() {
     msg2 "$(gettext "Compressing package...")"
     # TODO: Maybe this can be set globally for robustness
     shopt -s -o pipefail
-    run_dpkg -b . "$pkg_file_local" || ret=$?
+    run_dpkg -b . "$pkg_file" || ret=$?
 
     shopt -u nullglob
     shopt -u -o pipefail
@@ -2349,10 +2349,10 @@ create_package() {
         exit 1 # TODO: error code
     fi
 
-    if [ -e $pkg_file ]; then
-        rm -f $pkg_file
+    if [ -e "$pkg_link" ]; then
+        rm -f "$pkg_link"
     fi
-    ln -s $pkg_file_local $pkg_file
+    ln -s "$pkg_file" "$pkg_link"
     ret=$?
     if (( ret )); then
         warning "$(gettext "Failed to create symlink to package file.")"
@@ -2362,17 +2362,28 @@ create_package() {
     mv DEBIAN debian
 
     msg2 "$(gettext "Recreating debian/control file with source section")"
-    write_debian_control "source" "package" > $debiandir/control
+    write_debian_control "source" "package" > "$debiandir/control"
 
     msg2 "$(gettext "Generating changes file $pkgdirbase/${pkg_name}.changes")"
-    local deb_changes="$pkgdirbase/${pkg_name}.changes"
-    dpkg-genchanges > "$deb_changes"
+    local pkg_changes="$pkgdirbase/${pkg_name}.changes"
+    dpkg-genchanges > "$pkg_changes"
     ret=$?
     if (( ret )); then
         error "$(gettext "Failed while trying to generate changes file")"
         exit $ret
     fi
-    sign "$deb_changes"
+
+    local changes_link="$PKGDEST/${pkgname}.changes"
+    if [ -e "$changes_link" ]; then
+        rm -rf "$changes_link"
+    fi
+    ln -s "$pkg_changes" "$changes_link"
+
+    sign "$pkg_changes" || ret=$?
+    if (( ret )); then
+        error "$(gettext "Failed while trying to sign changes file")"
+        exit $ret
+    fi
 }
 
 create_debug_package() {
