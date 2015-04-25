@@ -153,7 +153,7 @@ clean_up() {
         # If it's a clean exit and -c/--clean has been passed...
         msg "$(gettext "Cleaning up...")"
         rm -rf "$pkgdirbase" "$srcdir" "$debiandirbase"
-        if [[ -n $pkgbase ]]; then
+        if [[ -n $pkgname ]]; then
             local fullver=$(get_full_version)
             # Can't do this unless the BUILDSCRIPT has been sourced.
             if (( BUILDFUNC )); then
@@ -199,7 +199,7 @@ enter_fakeroot() {
 get_pkg_basename() {
     local pkg=$1
     if [ -z $pkg ]; then
-        pkg=$pkgbase
+        pkg=$pkgname
     fi
     printf "${pkg}_$(get_full_version)"
 }
@@ -883,7 +883,7 @@ update_pkgver() {
             pkgver="$newpkgver"
             source_safe "$BUILDFILE"
             local fullver=$(get_full_version)
-            msg "$(gettext "Updated version: %s")" "$pkgbase $fullver"
+            msg "$(gettext "Updated version: %s")" "$pkgname $fullver"
         else
             warning "$(gettext "%s is not writeable -- pkgver will not be updated")" \
                 "$BUILDFILE"
@@ -2119,7 +2119,7 @@ srcinfo_write_global() {
         noextract options backup
         source {md5,sha{1,224,256,384,512}}sums)
 
-    srcinfo_open_section 'pkgbase' "${pkgbase:-$pkgname}"
+    srcinfo_open_section 'pkgname' "$pkgname"
     srcinfo_write_section_details ''
     srcinfo_close_section
 }
@@ -2419,14 +2419,14 @@ create_srcpackage() {
     local ret=0
     msg "$(gettext "Creating source package...")"
     srclinks="$(mktemp -d "$startdir"/srclinks.XXXXXXXXX)"
-    mkdir "${srclinks}/${pkgbase}"
+    mkdir "${srclinks}/${pkgname}"
 
 
     local file all_sources
 
-    msg2 "$(gettext "Copying contents of ${srcdir} to ${srclinks}/${pkgbase}/.")"
-    mkdir -p "${srclinks}/${pkgbase}/"
-    cp -rL ${srcdir}/* "${srclinks}/${pkgbase}/"
+    msg2 "$(gettext "Copying contents of ${srcdir} to ${srclinks}/${pkgname}/.")"
+    mkdir -p "${srclinks}/${pkgname}/"
+    cp -rL ${srcdir}/* "${srclinks}/${pkgname}/"
 
     get_all_sources 'all_sources'
     for file in "${all_sources[@]}"; do
@@ -2434,7 +2434,7 @@ create_srcpackage() {
             local absfile
             absfile=$(get_filepath "$file") || missing_source_file "$file"
             msg2 "$(gettext "Adding %s...")" "${absfile##*/}"
-            cp -r "$absfile" "$srclinks/$pkgbase"
+            cp -r "$absfile" "$srclinks/$pkgname"
         fi
     done
 
@@ -2450,9 +2450,9 @@ create_srcpackage() {
         done
 
         for file in "${files[@]}"; do
-            if [[ $file && ! -e "${srclinks}/${pkgbase}/$file" ]]; then
+            if [[ $file && ! -e "${srclinks}/${pkgname}/$file" ]]; then
                 msg2 "$(gettext "Adding %s file (%s)...")" "$i" "${file}"
-                cp "${startdir}/$file" "${srclinks}/${pkgbase}/"
+                cp "${startdir}/$file" "${srclinks}/${pkgname}/"
             fi
         done
     done
@@ -2464,12 +2464,12 @@ create_srcpackage() {
 
     # tar it up
     msg2 "$(gettext "Compressing source package...")"
-    cd_safe "${srclinks}/${pkgbase}"
+    cd_safe "${srclinks}/${pkgname}"
     # Create symlink to directory with debian control files for dpkg-source
     ln -s "$debiandir" "debian"
     write_debian_control "source" "package" > debian/control
 
-    #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgbase}; then
+    #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgname}; then
     if LANG=C dpkg-source -b ./; then
         # dpkg-source -b will create files one level upper
         cd_safe "${srclinks}"
@@ -2505,7 +2505,7 @@ install_package() {
     if (( ! SPLITPKG )); then
         msg "$(gettext "Installing package %s with %s...")" "$pkgname" "$DPKG -i"
     else
-        msg "$(gettext "Installing %s package group with %s...")" "$pkgbase" "$DPKG -i"
+        msg "$(gettext "Installing %s package group with %s...")" "$pkgname" "$DPKG -i"
     fi
 
     local fullver pkgarch pkg pkglist
@@ -2691,7 +2691,7 @@ lint_arch() {
     done
 
     if (( ! IGNOREARCH )) && ! in_array "$CARCH" "${arch[@]}"; then
-        error "$(gettext "%s is not available for the '%s' architecture.")" "$pkgbase" "$CARCH"
+        error "$(gettext "%s is not available for the '%s' architecture.")" "$pkgname" "$CARCH"
         plain "$(gettext "Note that many packages may need a line added to their %s")" "$BUILDSCRIPT"
         plain "$(gettext "such as %s.")" "arch=('$CARCH')"
         exit 1
@@ -3711,14 +3711,14 @@ if [[ $BUILDDIR = "$startdir" ]]; then
     pkgdirbase="$BUILDDIR/pkg"
     debiandirbase="$BUILDDIR/debian"
 else
-    srcdir="$BUILDDIR/$pkgbase/src"
-    pkgdirbase="$BUILDDIR/$pkgbase/pkg"
-    debiandirbase="$BUILDDIR/$pkgbase/debian"
+    srcdir="$BUILDDIR/$pkgname/src"
+    pkgdirbase="$BUILDDIR/$pkgname/pkg"
+    debiandirbase="$BUILDDIR/$pkgname/debian"
 fi
 
 # set pkgdir to something "sensible" for (not recommended) use during build()
-pkgdir="$pkgdirbase/$pkgbase"
-debiandir="$debiandirbase/$pkgbase"
+pkgdir="$pkgdirbase/$pkgname"
+debiandir="$debiandirbase/$pkgname"
 
 if (( GENINTEG )); then
     mkdir -p "$srcdir"
@@ -3817,11 +3817,11 @@ if (( INFAKEROOT )); then
     exit 0 # $E_OK
 fi
 
-msg "$(gettext "Making package: %s")" "$pkgbase $basever ($(date))"
+msg "$(gettext "Making package: %s")" "$pkgname $basever ($(date))"
 
 # if we are creating a source-only package, go no further
 if (( SOURCEONLY )); then
-    if [[ -e $SRCPKGDEST/${pkgbase}-${basever}${SRCEXT} ]] \
+    if [[ -e $SRCPKGDEST/${pkgname}-${basever}${SRCEXT} ]] \
         && (( ! FORCE )); then
         error "$(gettext "A source package has already been built. (use %s to overwrite)")" "-f"
         exit 1
@@ -3842,7 +3842,7 @@ if (( SOURCEONLY )); then
 
     enter_fakeroot
 
-    msg "$(gettext "Source package created: %s")" "$pkgbase ($(date))"
+    msg "$(gettext "Source package created: %s")" "$pkgname ($(date))"
     exit 0
 fi
 
@@ -3941,7 +3941,7 @@ if (( NOARCHIVE )); then
     exit 0
 fi
 
-msg "$(gettext "Finished making: %s")" "$pkgbase $basever ($(date))"
+msg "$(gettext "Finished making: %s")" "$pkgname $basever ($(date))"
 
 install_package
 
