@@ -2373,7 +2373,7 @@ create_package() {
         exit $ret
     fi
 
-    local changes_link="$PKGDEST/${pkgname}.changes"
+    local changes_link="$PKGDEST/${pkg_name}.changes"
     if [ -e "$changes_link" ]; then
         rm -rf "$changes_link"
     fi
