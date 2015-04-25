@@ -17,9 +17,9 @@
    - [X] Shasums and GnuPG validation of source archives
    - [X] Changelog provision(DONE, but not tested)
    - [X] Package GnuPG signing
+   - [X] Split packaging
    - [ ] Dependency resolution don't works if concrete version specified :: I need a parser for this
    - [ ] Documentation :: There will be a complete tutorial to start from the scratch
-   - [ ] Get rid of multiple packages in one PKGBUILD :: That's too complicated
 
 ** Difference between Archlinux makepkg and makedebpkg
    - There are some options removed, because dpkg/apt doesn't support them:
