@@ -2299,14 +2299,23 @@ create_package() {
     write_debian_files "$pkg_full_name" > "$debiandir/files"
     local comp_files=()
 
+    local hook_name
+    local hook_file
     # Install special debian hook scripts
-    for i in "preinst" "postinst" "prerm" "postrm"; do
-        if [ -f "$startdir/install/$i" ]; then
-            if ! cp "$startdir/install/$i" "$debiandir/"; then
-                error "$(gettext "Failed to add %s file to package")" "$i"
+    for hook_name in "preinst" "postinst" "prerm" "postrm"; do
+        if (( SPLITPKG )); then
+            hook_file="${pkgname}.${hook_name}"
+        else
+            hook_file="$hook_name"
+        fi
+
+        if [ -f "$startdir/install/$hook_file" ]; then
+            msg2 "$(gettext "Adding hook %s")" "$hook_file"
+            if ! cp "$startdir/install/$hook_file" "$debiandir/$hook_name"; then
+                error "$(gettext "Failed to add %s file to package")" "$hook_file"
                 exit 1
             fi
-            chmod 755 "$debiandir/$i"
+            chmod 755 "$debiandir/$hook_name"
         fi
     done
 
