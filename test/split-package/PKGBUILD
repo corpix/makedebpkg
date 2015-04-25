@@ -1,0 +1,39 @@
+pkgname=('split-package-one' 'split-package-two')
+pkgver=2
+pkgrel=1
+pkgdesc='ololo'
+arch=('all')
+url='https://github.com/corpix'
+maintainer='Dmitry Moskowski <me@corpix.ru>'
+license=()
+depends=()
+makedepends=()
+checkdepends=('git' 'bsdtar')
+options=('!emptydirs' 'purge')
+branch=unstable
+section=unknown
+priority=extra
+source=('README.md')
+sha256sums=('SKIP')
+
+_destdir="/etc/$pkgname"
+
+DEP_BIN=1
+
+build() {
+    cd "${srcdir}"
+    # make
+}
+
+package_split-package-one() {
+    cd "${srcdir}"
+    mkdir -p "${pkgdir}/${_destdir}"
+    touch "${pkgdir}/${_destdir}/keeeep"
+}
+
+
+package_split-package-two() {
+    cd "${srcdir}"
+    mkdir -p "${pkgdir}/${_destdir}"
+    touch "${pkgdir}/${_destdir}/keeeep"
+}
