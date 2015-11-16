@@ -2489,8 +2489,13 @@ create_srcpackage() {
     ln -s "$debiandir" "debian"
     write_debian_control "source" "package" > debian/control
 
-    #bsdtar -cL ${TAR_OPT} -f "$pkg_file" ${pkgname}; then
-    if LANG=C dpkg-source -b ./; then
+    ret=0
+    LANG=C dpkg-source \
+        -Z${SOURCE_COMPRESSION:-gzip} \
+        -z${SOURCE_COMPRESSION_LEVEL:-fast} \
+        -b ./ || ret=$?
+
+    if [ $ret = 0 ]; then
         # dpkg-source -b will create files one level upper
         cd_safe "${srclinks}"
         for f in "${pkg_files[@]}"; do
@@ -2511,7 +2516,7 @@ create_srcpackage() {
         done
     else
         error "$(gettext "Failed to create source package file.")"
-        exit 1 # TODO: error code
+        exit $ret
     fi
 
     cd_safe "${startdir}"
