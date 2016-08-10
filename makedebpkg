@@ -1080,7 +1080,7 @@ check_deps() {
         ret=$?
         if (( ret )); then
             if [[ "$dpkg_out" == *"not installed"* ]]; then
-                not_installed+="$package"
+                not_installed=(${not_installed[@]} "$package")
             else
                 error "$(gettext "'%s' returned a fatal error (%i): %s")" "$DPKG" "$ret" "$dpkg_out"
                 return "$ret"
@@ -1088,14 +1088,13 @@ check_deps() {
         fi
     done
 
-    if [ ! -z "$not_installed" ]; then #unresolved deps
-        printf "%s\n" "$not_installed"
-    fi
+    join ' ' "${not_installed[@]}"
 }
 
 handle_deps() {
     local R_DEPS_SATISFIED=0
     local R_DEPS_MISSING=1
+    local ret=0
 
     (( $# == 0 )) && return $R_DEPS_SATISFIED
 
@@ -1109,9 +1108,10 @@ handle_deps() {
         # install missing deps from binary packages (using `apt-get install`)
         msg "$(gettext "Installing missing dependencies...")"
 
-        if ! run_aptget install $deplist; then
+        run_aptget install -y $deplist || $ret=$?
+        if (( ret )); then
             error "$(gettext "'%s' failed to install missing dependencies.")" "$APTGET"
-            exit 1 # TODO: error code
+            return $ret
         fi
     fi
 
@@ -1119,7 +1119,7 @@ handle_deps() {
     # save our shell options and turn off extglob
     local shellopts=$(shopt -p)
     shopt -u extglob
-    source /etc/profile &>/dev/null
+    source /etc/profile
     eval "$shellopts"
 
     return $R_DEPS_SATISFIED
@@ -1132,12 +1132,12 @@ resolve_deps() {
     # deplist cannot be declared like this: local deplist=$(foo)
     # Otherwise, the return value will depend on the assignment.
     local deplist
-    deplist="$(set +E; check_deps $*)" || exit 1
+    deplist="$(set +E; check_deps $@)" || exit 1
     [[ -z $deplist ]] && return $R_DEPS_SATISFIED
 
     if handle_deps $deplist; then
         # check deps again to make sure they were resolved
-        deplist="$(set +E; check_deps $*)" || exit 1
+        deplist="$(set +E; check_deps $@)" || exit 1
         [[ -z $deplist ]] && return $R_DEPS_SATISFIED
     fi
 
@@ -1638,11 +1638,19 @@ merge_arch_attrs() {
     unset -v "${supported_attrs[@]/%/_$CARCH}"
 }
 
+merge_make_depends() {
+    if (( "${#MAKE_DEPENDS[@]}" ))
+    then
+        makedepends=( "${MAKE_DEPENDS[@]}" "${makedepends[@]}" )
+    fi
+}
+
 source_buildfile() {
     source_safe "$@"
 
     if (( !SOURCEONLY )); then
         merge_arch_attrs
+        merge_make_depends
     fi
 }
 
@@ -2254,8 +2262,8 @@ write_debian_changelog() {
         local packager=$D_PACKAGER
     fi
     printf "%s (%s) %s; urgency=low\n\n" "$pkgname" "$(get_full_version)" "$branch"
-    printf "\t* Automatic record by makedebpkg tool https://github.com/corpix/makedebpkg\n\n"
-    printf " -- %s %s\n" "$packager" "$(date --rfc-2822)"
+    printf "  * Automatic record by makedebpkg tool https://github.com/corpix/makedebpkg\n\n"
+    printf " -- %s  %s\n" "$packager" "$(date --rfc-2822)"
 }
 
 write_debian_files() {
@@ -2425,7 +2433,7 @@ sign() {
     local filename="$1"
     msg "$(gettext "Signing file %s ...")" "$filename"
 
-    debsign -k${GPGKEY} "$filename" &>/dev/null || ret=$?
+    debsign -k${GPGKEY} "$filename" || ret=$?
 
     if (( ret )); then
         error "$(gettext "Failed to sign %s.")" "$filename"
@@ -3473,6 +3481,12 @@ This is free software; see the source for copying conditions.\n\
 There is NO WARRANTY, to the extent permitted by law.\n")"
 }
 
+reset() {
+    unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license section priority provides branch
+    unset controlsource controlpackage md5sums replaces depends conflicts backup source install changelog build
+    unset makedepends optdepends options noextract validpgpkeys
+}
+
 # PROGRAM START
 
 # ensure we have a sane umask set
@@ -3700,9 +3714,7 @@ else
     fi
 fi
 
-unset pkgname pkgbase pkgver pkgrel epoch pkgdesc url license section priority provides branch
-unset controlsource controlpackage md5sums replaces depends conflicts backup source install changelog build
-unset makedepends optdepends options noextract validpgpkeys
+reset
 
 BUILDFILE=${BUILDFILE:-$BUILDSCRIPT}
 if [[ ! -e $BUILDFILE ]]; then
